@@ -21,8 +21,7 @@ const ReactFlowTableNode: React.FC<NodeProps<TableNodeData>> = ({ data, selected
         selected || isSelected ? 'border-blue-500 shadow-xl' : 'border-gray-200'
       }`}
       style={{
-        minWidth: '280px',
-        maxWidth: '400px',
+        width: '300px',
       }}
     >
       {/* Table Header */}
@@ -30,8 +29,13 @@ const ReactFlowTableNode: React.FC<NodeProps<TableNodeData>> = ({ data, selected
         className="px-4 py-3 rounded-t-lg flex items-center justify-between cursor-move"
         style={{ backgroundColor: table.color || '#3b82f6' }}
       >
-        <h3 className="font-semibold text-white text-lg">{table.name}</h3>
-        <div className="flex items-center gap-2">
+        <h3
+          className="font-semibold text-white text-lg truncate flex-1 mr-2"
+          title={table.name}
+        >
+          {table.name}
+        </h3>
+        <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -70,7 +74,7 @@ const ReactFlowTableNode: React.FC<NodeProps<TableNodeData>> = ({ data, selected
 
       {/* Comment */}
       {table.comment && (
-        <div className="px-4 py-2 text-sm text-gray-600 bg-gray-50 border-b border-gray-200">
+        <div className="px-4 py-2 text-sm text-gray-600 bg-gray-50 border-b border-gray-200 truncate" title={table.comment}>
           {table.comment}
         </div>
       )}

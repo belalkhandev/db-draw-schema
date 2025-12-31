@@ -310,7 +310,7 @@ export const ReactFlowCanvas: React.FC = () => {
 
   const connectionInfo = getPendingConnectionInfo();
 
-  // Auto-rearrange tables with smart layout
+  // Auto-rearrange tables with masonry layout (like Pinterest)
   const handleRearrange = useCallback(() => {
     if (!currentSchema) return;
 
@@ -331,45 +331,43 @@ export const ReactFlowCanvas: React.FC = () => {
       };
     });
 
-    // Smart grid layout with dynamic positioning
-    const minHorizontalSpacing = 100;
-    const minVerticalSpacing = 80;
-    const maxColumnsPerRow = Math.min(4, Math.max(2, Math.ceil(Math.sqrt(tableCount))));
+    // Masonry layout configuration
+    const columnCount = Math.min(4, Math.max(2, Math.ceil(Math.sqrt(tableCount))));
+    const columnWidth = 300; // Table width
+    const horizontalGap = 100;
+    const verticalGap = 80;
+    const startX = 50;
+    const startY = 50;
 
-    let currentX = 50;
-    let currentY = 50;
-    let currentRowHeight = 0;
-    let itemsInCurrentRow = 0;
+    // Initialize column heights array - tracks the current Y position of each column
+    const columnHeights = Array(columnCount).fill(startY);
+    const columnXPositions = Array(columnCount)
+      .fill(0)
+      .map((_, i) => startX + i * (columnWidth + horizontalGap));
 
-    tableData.forEach((data, index) => {
+    // Place each table in the shortest column (masonry algorithm)
+    tableData.forEach((data) => {
+      // Find the column with minimum height
+      const minHeight = Math.min(...columnHeights);
+      const columnIndex = columnHeights.indexOf(minHeight);
+
       // Add some randomness for natural look
-      const randomXOffset = Math.random() * 30 - 15; // -15 to +15
-      const randomYOffset = Math.random() * 20 - 10; // -10 to +10
+      const randomXOffset = Math.random() * 20 - 10; // -10 to +10
+      const randomYOffset = Math.random() * 15 - 7; // -7 to +7
+
+      // Position the table in the shortest column
+      const x = columnXPositions[columnIndex] + randomXOffset;
+      const y = columnHeights[columnIndex] + randomYOffset;
 
       dispatch(
         updateTablePosition({
           tableId: data.table.id,
-          position: {
-            x: currentX + randomXOffset,
-            y: currentY + randomYOffset,
-          },
+          position: { x, y },
         })
       );
 
-      // Track the tallest table in current row
-      currentRowHeight = Math.max(currentRowHeight, data.height);
-      itemsInCurrentRow++;
-
-      // Move to next position
-      currentX += data.width + minHorizontalSpacing;
-
-      // Check if we need to move to next row
-      if (itemsInCurrentRow >= maxColumnsPerRow || index === tableCount - 1) {
-        currentX = 50; // Reset X
-        currentY += currentRowHeight + minVerticalSpacing; // Move Y down by tallest table + spacing
-        currentRowHeight = 0; // Reset row height
-        itemsInCurrentRow = 0; // Reset counter
-      }
+      // Update the column height (add table height + vertical gap)
+      columnHeights[columnIndex] += data.height + verticalGap;
     });
   }, [currentSchema, dispatch]);
 
