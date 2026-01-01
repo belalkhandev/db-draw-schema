@@ -28,6 +28,7 @@ export interface Column {
   autoIncrement: boolean;
   defaultValue?: string;
   comment?: string;
+  enumValues?: string[]; // For ENUM type - array of allowed values
   foreignKey?: {
     tableId: string;
     columnId: string;

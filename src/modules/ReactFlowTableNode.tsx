@@ -94,6 +94,7 @@ const ReactFlowTableNode: React.FC<NodeProps<TableNodeData>> = ({ data, selected
                   e.stopPropagation();
                   onColumnClick(table.id, column.id);
                 }}
+                title={column.comment || undefined}
               >
                 {/* Source Handle (Left side) - visible on hover or when selected */}
                 <Handle
@@ -149,10 +150,24 @@ const ReactFlowTableNode: React.FC<NodeProps<TableNodeData>> = ({ data, selected
                   </div>
                 </div>
 
+                {/* Enum Values */}
+                {column.enumValues && column.enumValues.length > 0 && (
+                  <div className="text-xs text-gray-500 mt-1 ml-6 truncate" title={column.enumValues.join(', ')}>
+                    Enum: {column.enumValues.join(', ')}
+                  </div>
+                )}
+
                 {/* Default Value */}
                 {column.defaultValue && (
                   <div className="text-xs text-gray-500 mt-1 ml-6">
                     Default: {column.defaultValue}
+                  </div>
+                )}
+
+                {/* Comment - visible on hover via icon */}
+                {column.comment && (
+                  <div className="text-xs text-blue-600 mt-1 ml-6 italic truncate" title={column.comment}>
+                    💬 {column.comment}
                   </div>
                 )}
 

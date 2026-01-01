@@ -101,6 +101,8 @@ export const Sidebar: React.FC = () => {
     primaryKey: false,
     unique: false,
     autoIncrement: false,
+    comment: '',
+    enumValues: '',
     hasRelation: false,
     foreignKey: {
       tableId: '',
@@ -131,6 +133,8 @@ export const Sidebar: React.FC = () => {
         primaryKey: selectedColumn.primaryKey,
         unique: selectedColumn.unique,
         autoIncrement: selectedColumn.autoIncrement || false,
+        comment: selectedColumn.comment || '',
+        enumValues: selectedColumn.enumValues?.join(', ') || '',
         hasRelation: !!selectedColumn.foreignKey,
         foreignKey: {
           tableId: selectedColumn.foreignKey?.tableId || '',
@@ -151,6 +155,8 @@ export const Sidebar: React.FC = () => {
         primaryKey: false,
         unique: false,
         autoIncrement: false,
+        comment: '',
+        enumValues: '',
         hasRelation: false,
         foreignKey: {
           tableId: '',
@@ -174,6 +180,7 @@ export const Sidebar: React.FC = () => {
     { value: 'BOOLEAN', label: 'BOOLEAN' },
     { value: 'DECIMAL', label: 'DECIMAL' },
     { value: 'FLOAT', label: 'FLOAT' },
+    { value: 'ENUM', label: 'ENUM' },
     { value: 'JSON', label: 'JSON' },
   ];
 
@@ -201,6 +208,10 @@ export const Sidebar: React.FC = () => {
       primaryKey: columnForm.primaryKey,
       unique: columnForm.unique,
       autoIncrement: columnForm.autoIncrement,
+      comment: columnForm.comment.trim() || undefined,
+      enumValues: columnForm.dataType === 'ENUM' && columnForm.enumValues.trim()
+        ? columnForm.enumValues.split(',').map(v => v.trim()).filter(v => v.length > 0)
+        : undefined,
       foreignKey: columnForm.hasRelation && columnForm.foreignKey.tableId && columnForm.foreignKey.columnId
         ? columnForm.foreignKey
         : undefined,
@@ -234,6 +245,8 @@ export const Sidebar: React.FC = () => {
       primaryKey: false,
       unique: false,
       autoIncrement: false,
+      comment: '',
+      enumValues: '',
       hasRelation: false,
       foreignKey: {
         tableId: '',
@@ -256,6 +269,8 @@ export const Sidebar: React.FC = () => {
       primaryKey: false,
       unique: false,
       autoIncrement: false,
+      comment: '',
+      enumValues: '',
       hasRelation: false,
       foreignKey: {
         tableId: '',
@@ -475,6 +490,28 @@ export const Sidebar: React.FC = () => {
                 }
               />
             )}
+            {columnForm.dataType === 'ENUM' && (
+              <Input
+                placeholder="Enum values (comma-separated)"
+                value={columnForm.enumValues}
+                onChange={(e) =>
+                  setColumnForm({
+                    ...columnForm,
+                    enumValues: e.target.value,
+                  })
+                }
+              />
+            )}
+            <Input
+              placeholder="Comment (optional)"
+              value={columnForm.comment}
+              onChange={(e) =>
+                setColumnForm({
+                  ...columnForm,
+                  comment: e.target.value,
+                })
+              }
+            />
             <div className="space-y-1.5">
               <Checkbox
                 label="Primary Key"
