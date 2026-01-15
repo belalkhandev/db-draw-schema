@@ -2,3 +2,4 @@ export * from './column';
 export * from './table';
 export * from './relationship';
 export * from './schema';
+export * from './user';

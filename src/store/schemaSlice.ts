@@ -204,6 +204,23 @@ const schemaSlice = createSlice({
       }
     },
 
+    reorderColumn: (
+      state,
+      action: PayloadAction<{ tableId: string; columnId: string; newIndex: number }>
+    ) => {
+      if (state.currentSchema) {
+        const table = state.currentSchema.tables.find((t) => t.id === action.payload.tableId);
+        if (table) {
+          const columnIndex = table.columns.findIndex((c) => c.id === action.payload.columnId);
+          if (columnIndex !== -1) {
+            const [column] = table.columns.splice(columnIndex, 1);
+            table.columns.splice(action.payload.newIndex, 0, column);
+            state.currentSchema.updatedAt = new Date().toISOString();
+          }
+        }
+      }
+    },
+
     addRelationship: (state, action: PayloadAction<CreateRelationshipInput>) => {
       if (state.currentSchema) {
         const newRelationship: Relationship = {
@@ -242,6 +259,16 @@ const schemaSlice = createSlice({
 
     setSchemas: (state, action: PayloadAction<Schema[]>) => {
       state.schemas = action.payload;
+    },
+
+    updateSchemaDetails: (state, action: PayloadAction<Schema>) => {
+      const index = state.schemas.findIndex((s) => s.id === action.payload.id);
+      if (index !== -1) {
+        state.schemas[index] = action.payload;
+      }
+      if (state.currentSchema?.id === action.payload.id) {
+        state.currentSchema = action.payload;
+      }
     },
 
     importTablesFromSQL: (
@@ -288,6 +315,7 @@ export const {
   addColumn,
   updateColumn,
   deleteColumn,
+  reorderColumn,
   addRelationship,
   deleteRelationship,
   selectTable,
@@ -295,6 +323,7 @@ export const {
   setLoading,
   setError,
   setSchemas,
+  updateSchemaDetails,
   importTablesFromSQL,
 } = schemaSlice.actions;
 

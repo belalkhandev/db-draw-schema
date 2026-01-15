@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import schemaController from '../controllers/schema.controller.js';
+import { authenticate } from '../middleware/auth.middleware.js';
 
 const router = Router();
+
+router.use(authenticate);
 
 router.post('/', (req, res) => schemaController.create(req, res));
 router.get('/', (req, res) => schemaController.getAll(req, res));

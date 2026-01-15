@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { AxiosInstance } from 'axios';
-import type { Schema } from '../types';
+import type { Schema, RegisterData, LoginData, AuthResponse, User } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5550/api';
 
@@ -13,6 +13,14 @@ class ApiService {
       headers: {
         'Content-Type': 'application/json',
       },
+    });
+
+    this.api.interceptors.request.use((config) => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
     });
   }
 
@@ -38,6 +46,21 @@ class ApiService {
 
   async deleteSchema(id: string): Promise<void> {
     await this.api.delete(`/schemas/${id}`);
+  }
+
+  async register(data: RegisterData): Promise<AuthResponse> {
+    const response = await this.api.post<AuthResponse>('/auth/register', data);
+    return response.data;
+  }
+
+  async login(data: LoginData): Promise<AuthResponse> {
+    const response = await this.api.post<AuthResponse>('/auth/login', data);
+    return response.data;
+  }
+
+  async getProfile(): Promise<{ user: User }> {
+    const response = await this.api.get<{ user: User }>('/auth/profile');
+    return response.data;
   }
 }
 

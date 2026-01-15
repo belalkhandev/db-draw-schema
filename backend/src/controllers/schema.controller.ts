@@ -4,16 +4,18 @@ import schemaService from '../services/schema.service.js';
 export class SchemaController {
   async create(req: Request, res: Response): Promise<void> {
     try {
-      const schema = await schemaService.createSchema(req.body);
+      const userId = (req as any).userId;
+      const schema = await schemaService.createSchema(userId, req.body);
       res.status(201).json(schema.toJSON());
     } catch (error) {
       res.status(500).json({ error: 'Failed to create schema', details: error });
     }
   }
 
-  async getAll(_req: Request, res: Response): Promise<void> {
+  async getAll(req: Request, res: Response): Promise<void> {
     try {
-      const schemas = await schemaService.getAllSchemas();
+      const userId = (req as any).userId;
+      const schemas = await schemaService.getAllSchemas(userId);
       res.status(200).json(schemas.map(s => s.toJSON()));
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch schemas', details: error });
@@ -22,7 +24,8 @@ export class SchemaController {
 
   async getById(req: Request, res: Response): Promise<void> {
     try {
-      const schema = await schemaService.getSchemaById(req.params.id);
+      const userId = (req as any).userId;
+      const schema = await schemaService.getSchemaById(req.params.id, userId);
       if (!schema) {
         res.status(404).json({ error: 'Schema not found' });
         return;
@@ -35,7 +38,8 @@ export class SchemaController {
 
   async update(req: Request, res: Response): Promise<void> {
     try {
-      const schema = await schemaService.updateSchema(req.params.id, req.body);
+      const userId = (req as any).userId;
+      const schema = await schemaService.updateSchema(req.params.id, userId, req.body);
       if (!schema) {
         res.status(404).json({ error: 'Schema not found' });
         return;
@@ -48,7 +52,8 @@ export class SchemaController {
 
   async delete(req: Request, res: Response): Promise<void> {
     try {
-      const schema = await schemaService.deleteSchema(req.params.id);
+      const userId = (req as any).userId;
+      const schema = await schemaService.deleteSchema(req.params.id, userId);
       if (!schema) {
         res.status(404).json({ error: 'Schema not found' });
         return;

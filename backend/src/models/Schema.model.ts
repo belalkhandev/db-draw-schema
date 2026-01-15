@@ -40,6 +40,7 @@ interface IRelationship {
 }
 
 export interface ISchema extends Document {
+  userId: mongoose.Types.ObjectId;
   name: string;
   description?: string;
   tables: ITable[];
@@ -89,6 +90,7 @@ const RelationshipSchema = new Schema<IRelationship>({
 
 const SchemaSchema = new Schema<ISchema>(
   {
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     name: { type: String, required: true },
     description: { type: String },
     tables: [TableSchema],

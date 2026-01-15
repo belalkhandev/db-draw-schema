@@ -7,3 +7,4 @@ export { Checkbox } from './Checkbox';
 export { AlertDialog } from './AlertDialog';
 export { Header } from './Header';
 export { Toaster } from './Toaster';
+export { ProtectedRoute } from './ProtectedRoute';

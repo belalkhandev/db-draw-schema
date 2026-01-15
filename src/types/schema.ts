@@ -3,6 +3,7 @@ import type { Relationship } from './relationship';
 
 export interface Schema {
   id: string;
+  userId?: string;
   name: string;
   description?: string;
   tables: Table[];
