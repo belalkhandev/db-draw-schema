@@ -8,3 +8,4 @@ export { AlertDialog } from './AlertDialog';
 export { Header } from './Header';
 export { Toaster } from './Toaster';
 export { ProtectedRoute } from './ProtectedRoute';
+export { Popover, PopoverContent, PopoverItem, PopoverSeparator } from './Popover';

@@ -1,31 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
 import {
   addTable,
   addColumn,
   deleteColumn,
-  selectColumn,
   updateColumn,
   selectTable,
   updateTable,
+  reorderTables,
+  reorderColumns,
 } from '../store/schemaSlice';
-import { Button, Input, Select, Checkbox, AlertDialog } from '../components';
+import { AlertDialog, Popover } from '../components';
 import { TableModal } from './TableModal';
-import { Plus, X, MoreVertical, Edit, Link as LinkIcon } from 'lucide-react';
-import type { ColumnDataType } from '../types';
+import { DraggableTableList } from './DraggableTableList';
+import { DraggableColumnList } from './DraggableColumnList';
+import { TableListItem } from './TableListItem';
+import { ColumnListItem } from './ColumnListItem';
+import { ColumnOptionsMenu } from './ColumnOptionsMenu';
+import { AddColumnRow } from './AddColumnRow';
+import { Plus, MoreVertical } from 'lucide-react';
+import type { ColumnDataType, Column, Table } from '../types';
 import { toast } from 'sonner';
 
 export const Sidebar: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { currentSchema, selectedTableId, selectedColumnId } = useAppSelector(
-    (state) => state.schema
-  );
-  const selectedTable = currentSchema?.tables.find(
-    (t) => t.id === selectedTableId
-  );
-  const selectedColumn = selectedTable?.columns.find(
-    (c) => c.id === selectedColumnId
-  );
+  const { currentSchema } = useAppSelector((state) => state.schema);
 
   const [expandedTableId, setExpandedTableId] = useState<string | null>(null);
   const [showTableModal, setShowTableModal] = useState(false);
@@ -41,14 +40,6 @@ export const Sidebar: React.FC = () => {
       setExpandedTableId(tableId);
       dispatch(selectTable(tableId));
     }
-  };
-
-  const handleColumnClick = (columnId: string, tableId: string) => {
-    if (expandedTableId !== tableId) {
-      setExpandedTableId(tableId);
-      dispatch(selectTable(tableId));
-    }
-    dispatch(selectColumn(columnId));
   };
 
   const handleCreateTable = () => {
@@ -92,220 +83,81 @@ export const Sidebar: React.FC = () => {
     setShowTableModal(false);
   };
 
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [columnForm, setColumnForm] = useState({
-    name: '',
-    dataType: 'VARCHAR' as ColumnDataType,
-    length: 255,
-    nullable: true,
-    primaryKey: false,
-    unique: false,
-    autoIncrement: false,
-    comment: '',
-    enumValues: '',
-    hasRelation: false,
-    foreignKey: {
-      tableId: '',
-      columnId: '',
-      relationshipType: 'ONE_TO_MANY' as 'ONE_TO_ONE' | 'ONE_TO_MANY' | 'MANY_TO_MANY',
-      onDelete: 'CASCADE' as 'CASCADE' | 'SET NULL' | 'RESTRICT' | 'NO ACTION',
-      onUpdate: 'CASCADE' as 'CASCADE' | 'SET NULL' | 'RESTRICT' | 'NO ACTION',
-    },
-  });
-
   const [deleteColumnConfirm, setDeleteColumnConfirm] = useState<{
     isOpen: boolean;
+    tableId: string | null;
     columnId: string | null;
     columnName: string;
   }>({
     isOpen: false,
+    tableId: null,
     columnId: null,
     columnName: '',
   });
 
-  useEffect(() => {
-    if (selectedColumn) {
-      setColumnForm({
-        name: selectedColumn.name,
-        dataType: selectedColumn.dataType,
-        length: selectedColumn.length || 255,
-        nullable: selectedColumn.nullable,
-        primaryKey: selectedColumn.primaryKey,
-        unique: selectedColumn.unique,
-        autoIncrement: selectedColumn.autoIncrement || false,
-        comment: selectedColumn.comment || '',
-        enumValues: selectedColumn.enumValues?.join(', ') || '',
-        hasRelation: !!selectedColumn.foreignKey,
-        foreignKey: {
-          tableId: selectedColumn.foreignKey?.tableId || '',
-          columnId: selectedColumn.foreignKey?.columnId || '',
-          relationshipType: selectedColumn.foreignKey?.relationshipType || 'ONE_TO_MANY',
-          onDelete: selectedColumn.foreignKey?.onDelete || 'CASCADE',
-          onUpdate: selectedColumn.foreignKey?.onUpdate || 'CASCADE',
-        },
-      });
-      setIsEditMode(true);
-    } else {
-      setIsEditMode(false);
-      setColumnForm({
-        name: '',
-        dataType: 'VARCHAR',
-        length: 255,
-        nullable: true,
-        primaryKey: false,
-        unique: false,
-        autoIncrement: false,
-        comment: '',
-        enumValues: '',
-        hasRelation: false,
-        foreignKey: {
-          tableId: '',
-          columnId: '',
-          relationshipType: 'ONE_TO_MANY',
-          onDelete: 'CASCADE',
-          onUpdate: 'CASCADE',
-        },
-      });
-    }
-  }, [selectedColumn]);
+  const [columnMenuOpen, setColumnMenuOpen] = useState<string | null>(null);
 
-  const dataTypes: { value: ColumnDataType; label: string }[] = [
-    { value: 'VARCHAR', label: 'VARCHAR' },
-    { value: 'INT', label: 'INT' },
-    { value: 'BIGINT', label: 'BIGINT' },
-    { value: 'TEXT', label: 'TEXT' },
-    { value: 'DATE', label: 'DATE' },
-    { value: 'DATETIME', label: 'DATETIME' },
-    { value: 'TIMESTAMP', label: 'TIMESTAMP' },
-    { value: 'BOOLEAN', label: 'BOOLEAN' },
-    { value: 'DECIMAL', label: 'DECIMAL' },
-    { value: 'FLOAT', label: 'FLOAT' },
-    { value: 'ENUM', label: 'ENUM' },
-    { value: 'JSON', label: 'JSON' },
-  ];
-
-  const handleSaveColumn = () => {
-    if (!selectedTableId || !columnForm.name.trim()) return;
-
-    const table = currentSchema?.tables.find((t) => t.id === selectedTableId);
-    if (!table) return;
-
-    const duplicateColumn = table.columns.find(
-      (c) => c.name.toLowerCase() === columnForm.name.trim().toLowerCase() &&
-             (!isEditMode || c.id !== selectedColumnId)
-    );
-
-    if (duplicateColumn) {
-      toast.error(`Column "${columnForm.name}" already exists in this table`);
-      return;
-    }
-
-    const columnData = {
-      name: columnForm.name.trim(),
-      dataType: columnForm.dataType,
-      length: columnForm.length,
-      nullable: columnForm.nullable,
-      primaryKey: columnForm.primaryKey,
-      unique: columnForm.unique,
-      autoIncrement: columnForm.autoIncrement,
-      comment: columnForm.comment.trim() || undefined,
-      enumValues: columnForm.dataType === 'ENUM' && columnForm.enumValues.trim()
-        ? columnForm.enumValues.split(',').map(v => v.trim()).filter(v => v.length > 0)
-        : undefined,
-      foreignKey: columnForm.hasRelation && columnForm.foreignKey.tableId && columnForm.foreignKey.columnId
-        ? columnForm.foreignKey
-        : undefined,
-    };
-
-    if (isEditMode && selectedColumnId) {
-      dispatch(
-        updateColumn({
-          tableId: selectedTableId,
-          columnId: selectedColumnId,
-          updates: columnData,
-        })
-      );
-      dispatch(selectColumn(null));
-      toast.success(`Column "${columnData.name}" updated successfully`);
-    } else {
-      dispatch(
-        addColumn({
-          tableId: selectedTableId,
-          column: columnData,
-        })
-      );
-      toast.success(`Column "${columnData.name}" created successfully`);
-    }
-
-    setColumnForm({
-      name: '',
-      dataType: 'VARCHAR',
-      length: 255,
-      nullable: true,
-      primaryKey: false,
-      unique: false,
-      autoIncrement: false,
-      comment: '',
-      enumValues: '',
-      hasRelation: false,
-      foreignKey: {
-        tableId: '',
-        columnId: '',
-        relationshipType: 'ONE_TO_MANY',
-        onDelete: 'CASCADE',
-        onUpdate: 'CASCADE',
-      },
-    });
-    setIsEditMode(false);
-  };
-
-  const handleCancelEdit = () => {
-    dispatch(selectColumn(null));
-    setColumnForm({
-      name: '',
-      dataType: 'VARCHAR',
-      length: 255,
-      nullable: true,
-      primaryKey: false,
-      unique: false,
-      autoIncrement: false,
-      comment: '',
-      enumValues: '',
-      hasRelation: false,
-      foreignKey: {
-        tableId: '',
-        columnId: '',
-        relationshipType: 'ONE_TO_MANY',
-        onDelete: 'CASCADE',
-        onUpdate: 'CASCADE',
-      },
-    });
-    setIsEditMode(false);
-  };
-
-  const handleDeleteColumn = (columnId: string, columnName: string) => {
+  const handleDeleteColumn = (tableId: string, columnId: string, columnName: string) => {
     setDeleteColumnConfirm({
       isOpen: true,
+      tableId,
       columnId,
       columnName,
     });
   };
 
   const confirmDeleteColumn = () => {
-    if (selectedTableId && deleteColumnConfirm.columnId) {
-      const columnName = deleteColumnConfirm.columnName;
-      dispatch(
-        deleteColumn({
-          tableId: selectedTableId,
-          columnId: deleteColumnConfirm.columnId,
-        })
-      );
-      setDeleteColumnConfirm({ isOpen: false, columnId: null, columnName: '' });
-      if (selectedColumnId === deleteColumnConfirm.columnId) {
-        dispatch(selectColumn(null));
-      }
+    const { tableId, columnId, columnName } = deleteColumnConfirm as {
+      tableId: string;
+      columnId: string;
+      columnName: string;
+    };
+    if (tableId && columnId) {
+      dispatch(deleteColumn({ tableId, columnId }));
+      setDeleteColumnConfirm({ isOpen: false, columnId: null, columnName: '', tableId: null });
       toast.success(`Column "${columnName}" deleted successfully`);
     }
+  };
+
+  const handleColumnUpdate = (tableId: string, columnId: string, updates: Partial<Column>) => {
+    dispatch(updateColumn({ tableId, columnId, updates }));
+  };
+
+  const handleTableReorder = (tables: Table[]) => {
+    dispatch(reorderTables(tables));
+  };
+
+  const handleColumnReorder = (tableId: string, columns: Column[]) => {
+    dispatch(reorderColumns({ tableId, columns }));
+  };
+
+  const handleAddColumn = (tableId: string, name: string, dataType: ColumnDataType) => {
+    const table = currentSchema?.tables.find((t) => t.id === tableId);
+    if (!table) return;
+
+    const duplicateColumn = table.columns.find(
+      (c) => c.name.toLowerCase() === name.toLowerCase()
+    );
+
+    if (duplicateColumn) {
+      toast.error(`Column "${name}" already exists in this table`);
+      return;
+    }
+
+    dispatch(
+      addColumn({
+        tableId,
+        column: {
+          name,
+          dataType,
+          nullable: true,
+          primaryKey: false,
+          unique: false,
+          autoIncrement: false,
+        },
+      })
+    );
+    toast.success(`Column "${name}" created successfully`);
   };
 
   return (
@@ -341,536 +193,71 @@ export const Sidebar: React.FC = () => {
             <p className="text-sm">No tables yet</p>
           </div>
         ) : (
-          <div>
+          <DraggableTableList
+            tables={currentSchema.tables}
+            onReorder={handleTableReorder}
+          >
             {currentSchema.tables.map((table) => {
               const isExpanded = expandedTableId === table.id;
               return (
-                <div key={table.id} className={isExpanded ? 'bg-blue-50' : ''}>
-                  <div
-                    className={`px-3 py-2.5 flex items-center justify-between cursor-pointer border-b border-gray-100 hover:bg-gray-50 ${
-                      isExpanded ? 'bg-blue-100 hover:bg-blue-100' : ''
-                    }`}
-                    onClick={() => handleTableClick(table.id)}
-                  >
-                    <span className={`text-sm ${isExpanded ? 'text-blue-700 font-medium' : 'text-gray-600'}`}>
-                      {table.name}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      {isExpanded && (
-                        <button
-                          className="p-1 hover:bg-blue-200 rounded"
-                          onClick={(e) => handleEditTable(table.id, table.name, e)}
-                        >
-                          <Edit size={14} className="text-blue-600" />
-                        </button>
-                      )}
-                      <button className="p-1 hover:bg-gray-200 rounded">
-                        <MoreVertical size={14} className={isExpanded ? 'text-blue-600' : 'text-gray-400'} />
-                      </button>
-                    </div>
-                  </div>
+                <TableListItem
+                  key={table.id}
+                  table={table}
+                  isExpanded={isExpanded}
+                  onClick={() => handleTableClick(table.id)}
+                  onEdit={(e) => handleEditTable(table.id, table.name, e)}
+                >
                   {isExpanded && (
                     <div className="bg-white">
-                      {table.columns.length === 0 ? (
-                        <div className="px-3 py-4 text-center">
-                          <p className="text-xs text-gray-500 mb-3">No columns yet</p>
-                          <button
-                            onClick={() => dispatch(selectColumn(null))}
-                            className="px-3 py-1.5 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
-                          >
-                            Add Column
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="divide-y divide-gray-100">
-                            {table.columns.map((column) => (
-                              <div
-                                key={column.id}
-                                className="px-3 py-2 flex items-center gap-2 hover:bg-gray-50 cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleColumnClick(column.id, table.id);
-                                }}
+                      <DraggableColumnList
+                        columns={table.columns}
+                        onReorder={(columns) => handleColumnReorder(table.id, columns)}
+                      >
+                        {table.columns.map((column) => (
+                          <ColumnListItem
+                            key={column.id}
+                            column={column}
+                            onUpdate={(updates) => handleColumnUpdate(table.id, column.id, updates)}
+                            menuButton={
+                              <Popover
+                                trigger={
+                                  <button className="p-1 hover:bg-gray-200 rounded flex-shrink-0">
+                                    <MoreVertical size={12} className="text-gray-400" />
+                                  </button>
+                                }
+                                open={columnMenuOpen === column.id}
+                                onOpenChange={(open) => setColumnMenuOpen(open ? column.id : null)}
                               >
-                                <div className={`px-2 py-1 text-xs font-medium rounded border-2 flex-shrink-0 ${
-                                  column.primaryKey
-                                    ? 'border-yellow-400 bg-yellow-50 text-yellow-800'
-                                    : 'border-green-400 bg-green-50 text-green-800'
-                                }`}>
-                                  {column.name}
-                                </div>
-                                <div className="text-xs text-gray-500 flex-shrink-0 min-w-[60px]">
-                                  {column.dataType}
-                                  {column.length ? `(${column.length})` : ''}
-                                </div>
-                                <div className="text-xs text-gray-400 flex-shrink-0 w-4">
-                                  {column.nullable ? 'N' : ''}
-                                </div>
-                                <div className="flex-1"></div>
-                                {column.foreignKey?.tableId && column.foreignKey?.columnId ? (
-                                  <div className="flex items-center gap-1">
-                                    <LinkIcon size={12} className="text-blue-500" />
-                                    <span className="text-xs text-blue-600">FK</span>
-                                  </div>
-                                ) : null}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteColumn(column.id, column.name);
+                                <ColumnOptionsMenu
+                                  column={column}
+                                  onClose={() => setColumnMenuOpen(null)}
+                                  onUpdate={(updates) => handleColumnUpdate(table.id, column.id, updates)}
+                                  onDelete={() => {
+                                    setColumnMenuOpen(null);
+                                    handleDeleteColumn(table.id, column.id, column.name);
                                   }}
-                                  className="p-1 hover:bg-gray-200 rounded flex-shrink-0"
-                                >
-                                  <MoreVertical size={12} className="text-gray-400" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="px-3 py-2 flex items-center gap-2 border-t border-gray-200">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                dispatch(selectColumn(null));
-                              }}
-                              className="px-3 py-1.5 text-xs border border-gray-300 text-gray-700 rounded hover:bg-gray-50"
-                            >
-                              Add Column
-                            </button>
-                          </div>
-                        </>
-                      )}
+                                />
+                              </Popover>
+                            }
+                          />
+                        ))}
+                      </DraggableColumnList>
+                      <AddColumnRow onAdd={(name, dataType) => handleAddColumn(table.id, name, dataType)} />
                     </div>
                   )}
-                </div>
+                </TableListItem>
               );
             })}
-          </div>
+          </DraggableTableList>
         )}
       </div>
-
-      {selectedTable && isEditMode && (
-        <div className="border-t bg-white p-3 shadow-lg">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-xs font-semibold text-gray-700 uppercase">Edit Column</h4>
-            <button
-              onClick={handleCancelEdit}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <X size={14} />
-            </button>
-          </div>
-          <div className="space-y-2">
-            <Input
-              placeholder="Column name"
-              value={columnForm.name}
-              onChange={(e) =>
-                setColumnForm({ ...columnForm, name: e.target.value })
-              }
-            />
-            <Select
-              options={dataTypes}
-              value={columnForm.dataType}
-              onChange={(e) =>
-                setColumnForm({
-                  ...columnForm,
-                  dataType: e.target.value as ColumnDataType,
-                })
-              }
-            />
-            {['VARCHAR', 'CHAR'].includes(columnForm.dataType) && (
-              <Input
-                type="number"
-                placeholder="Length"
-                value={columnForm.length}
-                onChange={(e) =>
-                  setColumnForm({
-                    ...columnForm,
-                    length: parseInt(e.target.value),
-                  })
-                }
-              />
-            )}
-            {columnForm.dataType === 'ENUM' && (
-              <Input
-                placeholder="Enum values (comma-separated)"
-                value={columnForm.enumValues}
-                onChange={(e) =>
-                  setColumnForm({
-                    ...columnForm,
-                    enumValues: e.target.value,
-                  })
-                }
-              />
-            )}
-            <Input
-              placeholder="Comment (optional)"
-              value={columnForm.comment}
-              onChange={(e) =>
-                setColumnForm({
-                  ...columnForm,
-                  comment: e.target.value,
-                })
-              }
-            />
-            <div className="space-y-1.5">
-              <Checkbox
-                label="Primary Key"
-                checked={columnForm.primaryKey}
-                onChange={(e) =>
-                  setColumnForm({
-                    ...columnForm,
-                    primaryKey: e.target.checked,
-                    nullable: !e.target.checked,
-                  })
-                }
-              />
-              <Checkbox
-                label="Auto Increment"
-                checked={columnForm.autoIncrement}
-                onChange={(e) =>
-                  setColumnForm({
-                    ...columnForm,
-                    autoIncrement: e.target.checked,
-                  })
-                }
-              />
-              <Checkbox
-                label="Unique"
-                checked={columnForm.unique}
-                onChange={(e) =>
-                  setColumnForm({ ...columnForm, unique: e.target.checked })
-                }
-              />
-              <Checkbox
-                label="Nullable"
-                checked={columnForm.nullable}
-                disabled={columnForm.primaryKey}
-                onChange={(e) =>
-                  setColumnForm({ ...columnForm, nullable: e.target.checked })
-                }
-              />
-              <Checkbox
-                label="Has relations"
-                checked={columnForm.hasRelation}
-                onChange={(e) =>
-                  setColumnForm({
-                    ...columnForm,
-                    hasRelation: e.target.checked,
-                    foreignKey: e.target.checked ? columnForm.foreignKey : {
-                      tableId: '',
-                      columnId: '',
-                      relationshipType: 'ONE_TO_MANY',
-                      onDelete: 'CASCADE',
-                      onUpdate: 'CASCADE',
-                    },
-                  })
-                }
-              />
-            </div>
-            {columnForm.hasRelation && (
-              <div className="space-y-2 border-t pt-2">
-                <Select
-                  label="Target Table"
-                  options={
-                    currentSchema?.tables
-                      .filter((t) => t.id !== selectedTableId)
-                      .map((t) => ({ value: t.id, label: t.name })) || []
-                  }
-                  value={columnForm.foreignKey.tableId}
-                  onChange={(e) =>
-                    setColumnForm({
-                      ...columnForm,
-                      foreignKey: { ...columnForm.foreignKey, tableId: e.target.value, columnId: '' },
-                    })
-                  }
-                  placeholder="Select table"
-                />
-                {columnForm.foreignKey.tableId && (
-                  <>
-                    {currentSchema?.tables.find((t) => t.id === columnForm.foreignKey.tableId)?.columns.length === 0 ? (
-                      <div className="text-xs text-amber-600 bg-amber-50 px-2 py-1.5 rounded border border-amber-200">
-                        No columns found in the selected table
-                      </div>
-                    ) : (
-                      <>
-                        <Select
-                          label="Target Column"
-                          options={
-                            currentSchema?.tables
-                              .find((t) => t.id === columnForm.foreignKey.tableId)
-                              ?.columns.map((c) => ({ value: c.id, label: `${c.name} (${c.dataType})` })) || []
-                          }
-                          value={columnForm.foreignKey.columnId}
-                          onChange={(e) =>
-                            setColumnForm({
-                              ...columnForm,
-                              foreignKey: { ...columnForm.foreignKey, columnId: e.target.value },
-                            })
-                          }
-                          placeholder="Select column"
-                        />
-                        <Select
-                          label="Relationship Type"
-                          options={[
-                            { value: 'ONE_TO_ONE', label: 'One to One (1:1)' },
-                            { value: 'ONE_TO_MANY', label: 'One to Many (1:N)' },
-                            { value: 'MANY_TO_MANY', label: 'Many to Many (N:M)' },
-                          ]}
-                          value={columnForm.foreignKey.relationshipType || 'ONE_TO_MANY'}
-                          onChange={(e) =>
-                            setColumnForm({
-                              ...columnForm,
-                              foreignKey: { ...columnForm.foreignKey, relationshipType: e.target.value as 'ONE_TO_ONE' | 'ONE_TO_MANY' | 'MANY_TO_MANY' },
-                            })
-                          }
-                        />
-                        <div className="grid grid-cols-2 gap-2">
-                          <Select
-                            label="ON DELETE"
-                            options={[
-                              { value: 'CASCADE', label: 'CASCADE' },
-                              { value: 'SET NULL', label: 'SET NULL' },
-                              { value: 'RESTRICT', label: 'RESTRICT' },
-                              { value: 'NO ACTION', label: 'NO ACTION' },
-                            ]}
-                            value={columnForm.foreignKey.onDelete || 'CASCADE'}
-                            onChange={(e) =>
-                              setColumnForm({
-                                ...columnForm,
-                                foreignKey: { ...columnForm.foreignKey, onDelete: e.target.value as 'CASCADE' | 'SET NULL' | 'RESTRICT' | 'NO ACTION' },
-                              })
-                            }
-                          />
-                          <Select
-                            label="ON UPDATE"
-                            options={[
-                              { value: 'CASCADE', label: 'CASCADE' },
-                              { value: 'SET NULL', label: 'SET NULL' },
-                              { value: 'RESTRICT', label: 'RESTRICT' },
-                              { value: 'NO ACTION', label: 'NO ACTION' },
-                            ]}
-                            value={columnForm.foreignKey.onUpdate || 'CASCADE'}
-                            onChange={(e) =>
-                              setColumnForm({
-                                ...columnForm,
-                                foreignKey: { ...columnForm.foreignKey, onUpdate: e.target.value as 'CASCADE' | 'SET NULL' | 'RESTRICT' | 'NO ACTION' },
-                              })
-                            }
-                          />
-                        </div>
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-            <Button onClick={handleSaveColumn} className="w-full bg-blue-500 hover:bg-blue-600">
-              Save Changes
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {selectedTable && !isEditMode && selectedColumnId === null && (
-        <div className="border-t bg-white p-3 shadow-lg">
-          <h4 className="text-xs font-semibold text-gray-700 uppercase mb-2">Add Column</h4>
-          <div className="space-y-2">
-            <Input
-              placeholder="Column name"
-              value={columnForm.name}
-              onChange={(e) =>
-                setColumnForm({ ...columnForm, name: e.target.value })
-              }
-            />
-            <div className="flex gap-2 items-center">
-                <Select
-                    options={dataTypes}
-                    value={columnForm.dataType}
-                    onChange={(e) =>
-                        setColumnForm({
-                            ...columnForm,
-                            dataType: e.target.value as ColumnDataType,
-                        })
-                    }
-                />
-                {['VARCHAR', 'CHAR'].includes(columnForm.dataType) && (
-                    <Input
-                        type="number"
-                        placeholder="Length"
-                        value={columnForm.length}
-                        onChange={(e) =>
-                            setColumnForm({
-                                ...columnForm,
-                                length: parseInt(e.target.value),
-                            })
-                        }
-                    />
-                )}
-            </div>
-            <div className="space-y-1.5">
-              <Checkbox
-                label="Primary Key"
-                checked={columnForm.primaryKey}
-                onChange={(e) =>
-                  setColumnForm({
-                    ...columnForm,
-                    primaryKey: e.target.checked,
-                    nullable: !e.target.checked,
-                  })
-                }
-              />
-              <Checkbox
-                label="Auto Increment"
-                checked={columnForm.autoIncrement}
-                onChange={(e) =>
-                  setColumnForm({
-                    ...columnForm,
-                    autoIncrement: e.target.checked,
-                  })
-                }
-              />
-              <Checkbox
-                label="Unique"
-                checked={columnForm.unique}
-                onChange={(e) =>
-                  setColumnForm({ ...columnForm, unique: e.target.checked })
-                }
-              />
-              <Checkbox
-                label="Nullable"
-                checked={columnForm.nullable}
-                disabled={columnForm.primaryKey}
-                onChange={(e) =>
-                  setColumnForm({ ...columnForm, nullable: e.target.checked })
-                }
-              />
-              <Checkbox
-                label="Has relations"
-                checked={columnForm.hasRelation}
-                onChange={(e) =>
-                  setColumnForm({
-                    ...columnForm,
-                    hasRelation: e.target.checked,
-                    foreignKey: e.target.checked ? columnForm.foreignKey : {
-                      tableId: '',
-                      columnId: '',
-                      relationshipType: 'ONE_TO_MANY',
-                      onDelete: 'CASCADE',
-                      onUpdate: 'CASCADE',
-                    },
-                  })
-                }
-              />
-            </div>
-            {columnForm.hasRelation && (
-              <div className="space-y-2 border-t pt-2">
-                <Select
-                  label="Target Table"
-                  options={
-                    currentSchema?.tables
-                      .filter((t) => t.id !== selectedTableId)
-                      .map((t) => ({ value: t.id, label: t.name })) || []
-                  }
-                  value={columnForm.foreignKey.tableId}
-                  onChange={(e) =>
-                    setColumnForm({
-                      ...columnForm,
-                      foreignKey: { ...columnForm.foreignKey, tableId: e.target.value, columnId: '' },
-                    })
-                  }
-                  placeholder="Select table"
-                />
-                {columnForm.foreignKey.tableId && (
-                  <>
-                    {currentSchema?.tables.find((t) => t.id === columnForm.foreignKey.tableId)?.columns.length === 0 ? (
-                      <div className="text-xs text-amber-600 bg-amber-50 px-2 py-1.5 rounded border border-amber-200">
-                        No columns found in the selected table
-                      </div>
-                    ) : (
-                      <>
-                        <Select
-                          label="Target Column"
-                          options={
-                            currentSchema?.tables
-                              .find((t) => t.id === columnForm.foreignKey.tableId)
-                              ?.columns.map((c) => ({ value: c.id, label: `${c.name} (${c.dataType})` })) || []
-                          }
-                          value={columnForm.foreignKey.columnId}
-                          onChange={(e) =>
-                            setColumnForm({
-                              ...columnForm,
-                              foreignKey: { ...columnForm.foreignKey, columnId: e.target.value },
-                            })
-                          }
-                          placeholder="Select column"
-                        />
-                        <Select
-                          label="Relationship Type"
-                          options={[
-                            { value: 'ONE_TO_ONE', label: 'One to One (1:1)' },
-                            { value: 'ONE_TO_MANY', label: 'One to Many (1:N)' },
-                            { value: 'MANY_TO_MANY', label: 'Many to Many (N:M)' },
-                          ]}
-                          value={columnForm.foreignKey.relationshipType || 'ONE_TO_MANY'}
-                          onChange={(e) =>
-                            setColumnForm({
-                              ...columnForm,
-                              foreignKey: { ...columnForm.foreignKey, relationshipType: e.target.value as 'ONE_TO_ONE' | 'ONE_TO_MANY' | 'MANY_TO_MANY' },
-                            })
-                          }
-                        />
-                        <div className="grid grid-cols-2 gap-2">
-                          <Select
-                            label="ON DELETE"
-                            options={[
-                              { value: 'CASCADE', label: 'CASCADE' },
-                              { value: 'SET NULL', label: 'SET NULL' },
-                              { value: 'RESTRICT', label: 'RESTRICT' },
-                              { value: 'NO ACTION', label: 'NO ACTION' },
-                            ]}
-                            value={columnForm.foreignKey.onDelete || 'CASCADE'}
-                            onChange={(e) =>
-                              setColumnForm({
-                                ...columnForm,
-                                foreignKey: { ...columnForm.foreignKey, onDelete: e.target.value as 'CASCADE' | 'SET NULL' | 'RESTRICT' | 'NO ACTION' },
-                              })
-                            }
-                          />
-                          <Select
-                            label="ON UPDATE"
-                            options={[
-                              { value: 'CASCADE', label: 'CASCADE' },
-                              { value: 'SET NULL', label: 'SET NULL' },
-                              { value: 'RESTRICT', label: 'RESTRICT' },
-                              { value: 'NO ACTION', label: 'NO ACTION' },
-                            ]}
-                            value={columnForm.foreignKey.onUpdate || 'CASCADE'}
-                            onChange={(e) =>
-                              setColumnForm({
-                                ...columnForm,
-                                foreignKey: { ...columnForm.foreignKey, onUpdate: e.target.value as 'CASCADE' | 'SET NULL' | 'RESTRICT' | 'NO ACTION' },
-                              })
-                            }
-                          />
-                        </div>
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-            <Button onClick={handleSaveColumn} className="w-full bg-blue-500 hover:bg-blue-600">
-              Add Column
-            </Button>
-          </div>
-        </div>
-      )}
 
       <AlertDialog
         isOpen={deleteColumnConfirm.isOpen}
         onClose={() =>
           setDeleteColumnConfirm({
             isOpen: false,
+            tableId: null,
             columnId: null,
             columnName: '',
           })

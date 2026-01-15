@@ -119,6 +119,13 @@ const schemaSlice = createSlice({
       }
     },
 
+    reorderTables: (state, action: PayloadAction<Table[]>) => {
+      if (state.currentSchema) {
+        state.currentSchema.tables = action.payload;
+        state.currentSchema.updatedAt = new Date().toISOString();
+      }
+    },
+
     addColumn: (state, action: PayloadAction<{ tableId: string; column: Omit<Column, 'id'> }>) => {
       if (state.currentSchema) {
         const table = state.currentSchema.tables.find((t) => t.id === action.payload.tableId);
@@ -221,6 +228,19 @@ const schemaSlice = createSlice({
       }
     },
 
+    reorderColumns: (
+      state,
+      action: PayloadAction<{ tableId: string; columns: Column[] }>
+    ) => {
+      if (state.currentSchema) {
+        const table = state.currentSchema.tables.find((t) => t.id === action.payload.tableId);
+        if (table) {
+          table.columns = action.payload.columns;
+          state.currentSchema.updatedAt = new Date().toISOString();
+        }
+      }
+    },
+
     addRelationship: (state, action: PayloadAction<CreateRelationshipInput>) => {
       if (state.currentSchema) {
         const newRelationship: Relationship = {
@@ -312,10 +332,12 @@ export const {
   updateTable,
   updateTablePosition,
   deleteTable,
+  reorderTables,
   addColumn,
   updateColumn,
   deleteColumn,
   reorderColumn,
+  reorderColumns,
   addRelationship,
   deleteRelationship,
   selectTable,
