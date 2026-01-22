@@ -3,7 +3,6 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.model.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 interface RegisterRequest {
   name: string;
@@ -19,7 +18,7 @@ interface LoginRequest {
 }
 
 const generateToken = (userId: string): string => {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
 };
 
 export const register = async (req: Request, res: Response): Promise<void> => {
